@@ -9,7 +9,7 @@ def create_database():
 
     # Create Customers table
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS Customers (
+        CREATE TABLE IF NOT EXISTS Customers (
         CustomerID INTEGER PRIMARY KEY AUTOINCREMENT,
         FullName TEXT NOT NULL,
         Username TEXT NOT NULL UNIQUE,
@@ -19,8 +19,10 @@ def create_database():
         Gender TEXT CHECK (Gender IN ('Male', 'Female', 'Other')),
         MaritalStatus TEXT CHECK (MaritalStatus IN ('Single', 'Married', 'Divorced', 'Widowed')),
         WalletBalance REAL DEFAULT 0.0 CHECK (WalletBalance >= 0.0),
+        IsAdmin BOOLEAN DEFAULT FALSE, -- Column to identify admin
         CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT SingleAdmin CHECK (IsAdmin IN (0, 1)) -- Ensure IsAdmin is boolean
     );
     """)
 
