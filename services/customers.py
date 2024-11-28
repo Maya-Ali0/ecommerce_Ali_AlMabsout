@@ -3,7 +3,7 @@ import sqlite3
 
 customers_bp = Blueprint("customers", __name__)
 
-DB_PATH = "../eCommerce.db"
+DB_PATH = "./eCommerce.db"
 
 def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
     conn = sqlite3.connect(DB_PATH)
