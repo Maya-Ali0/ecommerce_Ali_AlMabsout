@@ -1,13 +1,10 @@
 from flask import Blueprint, request, jsonify
 import sqlite3
 
-# Blueprint for Inventory
 inventory_bp = Blueprint("inventory", __name__)
 
-# Database path
 DB_PATH = "./eCommerce.db"
 
-# Helper function to interact with the database
 def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -29,31 +26,25 @@ def add_goods():
         return jsonify({"error": "Request must contain JSON data."}), 400
 
     try:
-        # Validate required fields
         required_fields = ["Name", "Category", "PricePerItem", "Description", "StockCount"]
         for field in required_fields:
             if field not in data:
                 return jsonify({"error": f"'{field}' is required."}), 400
 
-        # Validate category
         valid_categories = ["Food", "Clothes", "Accessories", "Electronics"]
         if data["Category"] not in valid_categories:
             return jsonify({"error": f"Invalid category. Valid categories are: {', '.join(valid_categories)}"}), 400
 
-        # Validate PricePerItem
         if not isinstance(data["PricePerItem"], (int, float)) or data["PricePerItem"] <= 0:
             return jsonify({"error": "PricePerItem must be a positive number."}), 400
 
-        # Validate StockCount
         if not isinstance(data["StockCount"], int) or data["StockCount"] < 0:
             return jsonify({"error": "StockCount must be a non-negative integer."}), 400
 
-        # Check for duplicate goods
         existing_good = execute_query("SELECT * FROM Goods WHERE Name = ?", (data["Name"],), fetchone=True)
         if existing_good:
             return jsonify({"error": f"A good with the name '{data['Name']}' already exists."}), 400
 
-        # Insert into database
         query = """
         INSERT INTO Goods (Name, Category, PricePerItem, Description, StockCount)
         VALUES (?, ?, ?, ?, ?)
@@ -71,17 +62,14 @@ def add_goods():
     except KeyError as e:
         return jsonify({"error": f"Missing key: {e}"}), 400
 
-# 2. Deducting goods (removing an item from stock)
 @inventory_bp.route("/deduct/<int:good_id>", methods=["POST"])
 def deduct_goods(good_id):
     data = request.json
     try:
-        # Validate required fields
         quantity_to_deduct = data.get("quantity", 0)
         if quantity_to_deduct <= 0:
             return jsonify({"error": "Quantity to deduct must be greater than 0."}), 400
 
-        # Check stock availability
         query = "SELECT StockCount FROM Goods WHERE GoodID = ?"
         stock = execute_query(query, (good_id,), fetchone=True)
         if not stock:
@@ -89,7 +77,6 @@ def deduct_goods(good_id):
         if stock[0] < quantity_to_deduct:
             return jsonify({"error": f"Insufficient stock. Available stock: {stock[0]}."}), 400
 
-        # Deduct stock
         query = "UPDATE Goods SET StockCount = StockCount - ? WHERE GoodID = ?"
         execute_query(query, (quantity_to_deduct, good_id), commit=True)
 
@@ -97,12 +84,10 @@ def deduct_goods(good_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 3. Updating goods (update fields related to a specific item)
 @inventory_bp.route("/update/<int:good_id>", methods=["PUT"])
 def update_goods(good_id):
     data = request.json
     try:
-        # Validate fields to update
         if not data:
             return jsonify({"error": "No fields provided to update."}), 400
 
@@ -110,7 +95,6 @@ def update_goods(good_id):
         query = f"UPDATE Goods SET {fields} WHERE GoodID = ?"
         params = list(data.values()) + [good_id]
 
-        # Execute update query
         result = execute_query(query, params, commit=True)
         if not result:
             return jsonify({"message": f"Good ID {good_id} updated successfully."}), 200

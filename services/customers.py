@@ -26,26 +26,22 @@ def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False
 @customers_bp.route("/register", methods=["POST"])
 def register_customer():
     data = request.json
-    try:
-        # Validate required fields
+    try:       
         required_fields = ["FullName", "Username", "Password", "Age", "Address", "Gender", "MaritalStatus"]
         for field in required_fields:
             if field not in data:
                 return jsonify({"error": f"Missing field: {field}"}), 400
 
-        # Explicitly check if the username already exists
         existing_user = execute_query("SELECT * FROM Customers WHERE Username = ?", (data["Username"],), fetchone=True)
         if existing_user:
             return jsonify({"error": "Username already exists."}), 400
 
-        # Check for admin uniqueness
         is_admin = data.get("IsAdmin", False)
         if is_admin:
             existing_admin = execute_query("SELECT * FROM Customers WHERE IsAdmin = 1", fetchone=True)
             if existing_admin:
                 return jsonify({"error": "An admin already exists."}), 400
 
-        # Insert the new customer into the database
         query = """
         INSERT INTO Customers (FullName, Username, Password, Age, Address, Gender, MaritalStatus, WalletBalance, IsAdmin)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -55,18 +51,15 @@ def register_customer():
             data["Address"], data["Gender"], data["MaritalStatus"], 0.0, is_admin
         ), commit=True)
         
-        # Return success message
         return jsonify({"message": "Customer registered successfully."}), 201
 
     except sqlite3.IntegrityError as e:
-        # Handle database integrity errors
         if "UNIQUE constraint failed" in str(e):
             print(e)
             return jsonify({"error": "Username already exists."}), 400
         return jsonify({"error": "Database error occurred."}), 500
 
     except KeyError as e:
-        # Handle missing fields
         return jsonify({"error": f"Missing required field: {e.args[0]}"}), 400
 
 
