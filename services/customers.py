@@ -10,12 +10,18 @@ import sqlite3
 import re
 import jwt
 import datetime
+import pybreaker
 from functools import wraps
 
 customers_bp = Blueprint("customers", __name__)
 
 DB_PATH = "./eCommerce.db"
 SECRET_KEY = "A123"
+
+db_circuit_breaker = pybreaker.CircuitBreaker(
+    fail_max=5,  
+    reset_timeout=60 
+)
 
 def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
     """
@@ -31,8 +37,8 @@ def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False
     Returns:
         Any: The result of the query execution.
     """
-    conn = None
-    try:
+    @db_circuit_breaker
+    def query_with_circuit():
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         cursor.execute(query, params)
@@ -43,11 +49,14 @@ def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False
             result = cursor.fetchall()
         if commit:
             conn.commit()
+        conn.close()
         return result
-    finally:
-        if conn:
-            conn.close()
-
+    
+    try:
+        return query_with_circuit()
+    except pybreaker.CircuitBreakerError:
+        return {"error": "Database service is currently unavailable. Please try again later."}
+    
 def generate_jwt(username):
     """
     Generate a JWT token for the given username.

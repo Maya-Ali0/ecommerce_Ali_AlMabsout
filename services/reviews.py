@@ -7,9 +7,9 @@ includes review moderation functionalities for admins.
 """
 from flask import Flask, Blueprint, request, jsonify
 import sqlite3
-import jwt
+import pybreaker
 from functools import wraps
-from services.customers import token_required,decode_jwt
+from services.customers import token_required, db_circuit_breaker
 
 app = Flask(__name__)
 reviews_bp = Blueprint("reviews", __name__)
@@ -31,19 +31,26 @@ def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False
     Returns:
         Any: Query results if fetchone or fetchall is True; otherwise, None.
     """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row 
-    cursor = conn.cursor()
-    cursor.execute(query, params)
-    result = None
-    if fetchone:
-        result = cursor.fetchone()
-    elif fetchall:
-        result = cursor.fetchall()
-    if commit:
-        conn.commit()
-    conn.close()
-    return result
+    @db_circuit_breaker
+    def query_with_circuit():
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row 
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        result = None
+        if fetchone:
+            result = cursor.fetchone()
+        elif fetchall:
+            result = cursor.fetchall()
+        if commit:
+            conn.commit()
+        conn.close()
+        return result
+
+    try:
+        return query_with_circuit()
+    except pybreaker.CircuitBreakerError:
+        return {"error": "Database service is currently unavailable. Please try again later."}
 
 @reviews_bp.route("/submit", methods=["POST"])
 @token_required

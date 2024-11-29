@@ -6,7 +6,8 @@ deducting stock, and updating product information in the eCommerce database.
 """
 
 from flask import Blueprint, request, jsonify
-import sqlite3
+import sqlite3,pybreaker
+from services.customers import db_circuit_breaker
 
 inventory_bp = Blueprint("inventory", __name__)
 
@@ -26,18 +27,25 @@ def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False
     Returns:
         Any: Query results if fetchone or fetchall is True, otherwise None.
     """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute(query, params)
-    result = None
-    if fetchone:
-        result = cursor.fetchone()
-    elif fetchall:
-        result = cursor.fetchall()
-    if commit:
-        conn.commit()
-    conn.close()
-    return result
+    @db_circuit_breaker
+    def query_with_circuit():
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        result = None
+        if fetchone:
+            result = cursor.fetchone()
+        elif fetchall:
+            result = cursor.fetchall()
+        if commit:
+            conn.commit()
+        conn.close()
+        return result
+
+    try:
+        return query_with_circuit()
+    except pybreaker.CircuitBreakerError:
+        return {"error": "Database service is currently unavailable. Please try again later."}
 
 @inventory_bp.route("/add", methods=["POST"])
 def add_goods():
