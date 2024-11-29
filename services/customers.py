@@ -171,13 +171,30 @@ def charge_wallet(username):
         username (str): The username of the customer to charge.
 
     Returns:
-        JSON: Success message.
+        JSON: Success or error message.
     """
     data = request.json
-    amount = data.get("amount", 0)
+
+    if "Amount" not in data:
+        return jsonify({"error": "'Amount' field is required in the request."}), 400
+
+    try:
+        amount = float(data["Amount"])
+        if amount <= 0:
+            return jsonify({"error": "'Amount' must be a positive number."}), 400
+    except ValueError:
+        return jsonify({"error": "'Amount' must be a valid number."}), 400
+
+    user_query = "SELECT CustomerID FROM Customers WHERE Username = ?"
+    user = execute_query(user_query, (username,), fetchone=True)
+    if not user:
+        return jsonify({"error": f"Customer '{username}' not found."}), 404
+
     query = "UPDATE Customers SET WalletBalance = WalletBalance + ? WHERE Username = ?"
     execute_query(query, (amount, username), commit=True)
-    return jsonify({"message": f"Charged ${amount} to '{username}' successfully."})
+
+    return jsonify({"message": f"Charged ${amount} to '{username}' successfully."}), 200
+
 
 @customers_bp.route("/deduct/<username>", methods=["POST"])
 def deduct_wallet(username):
@@ -185,16 +202,33 @@ def deduct_wallet(username):
     Deduct from a customer's wallet.
 
     Args:
-        username (str): The username of the customer.
-        Returns:
-            JSON: Success or error message.
+        username (str): The username of the customer to deduct from.
+
+    Returns:
+        JSON: Success or error message.
     """
     data = request.json
-    amount = data.get("amount", 0)
-    query = "SELECT WalletBalance FROM Customers WHERE Username = ?"
-    wallet_balance = execute_query(query, (username,), fetchone=True)
-    if wallet_balance and wallet_balance[0] >= amount:
+
+    if "Amount" not in data:
+        return jsonify({"error": "'Amount' field is required in the request."}), 400
+
+    try:
+        amount = float(data["Amount"])
+        if amount <= 0:
+            return jsonify({"error": "'Amount' must be a positive number."}), 400
+    except ValueError:
+        return jsonify({"error": "'Amount' must be a valid number."}), 400
+
+    user_query = "SELECT WalletBalance FROM Customers WHERE Username = ?"
+    user = execute_query(user_query, (username,), fetchone=True)
+    if not user:
+        return jsonify({"error": f"Customer '{username}' not found."}), 404
+
+    wallet_balance = user[0]
+
+    if wallet_balance >= amount:
         query = "UPDATE Customers SET WalletBalance = WalletBalance - ? WHERE Username = ?"
         execute_query(query, (amount, username), commit=True)
-        return jsonify({"message": f"Deducted ${amount} from '{username}' successfully."})
+        return jsonify({"message": f"Deducted ${amount} from '{username}' successfully."}), 200
+
     return jsonify({"error": "Insufficient balance."}), 400
