@@ -7,11 +7,15 @@ includes review moderation functionalities for admins.
 """
 from flask import Flask, Blueprint, request, jsonify
 import sqlite3
+import jwt
+from functools import wraps
+from services.customers import token_required,decode_jwt
 
 app = Flask(__name__)
 reviews_bp = Blueprint("reviews", __name__)
 
 DB_PATH = "./eCommerce.db"
+SECRET_KEY = "A123"
 
 def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
     """
@@ -42,20 +46,34 @@ def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False
     return result
 
 @reviews_bp.route("/submit", methods=["POST"])
-def submit_review():
+@token_required
+def submit_review(**kwargs):
     """
     Submits a new product review.
 
-    Expects a JSON payload with:
-    - CustomerID: int
-    - GoodID: int
-    - Rating: int (1-5)
-    - Comment (optional): str
+    **Authorization:** Requires a valid JWT token.
+
+    **Request JSON:**
+    - CustomerID (int): The ID of the customer submitting the review.
+    - GoodID (int): The ID of the product being reviewed.
+    - Rating (int): The rating (1-5).
+    - Comment (str, optional): The review comment.
+
+    **Headers:**
+    - Authorization: Bearer <JWT_TOKEN>
 
     Returns:
-        JSON: A success message or error details.
+        JSON: Success or error message.
     """
     data = request.json
+    if "CustomerID" in data:
+        customer_id = data["CustomerID"]
+        username = get_username_from_customer_id(customer_id)
+        if username != kwargs["Username"]:
+            return jsonify({"error": "Unauthorized access"}), 403
+    else:
+         return jsonify({"error": "Missing required field: CustomerID"}), 400
+    
     try:
         required_fields = ["CustomerID", "GoodID", "Rating"]
         for field in required_fields:
@@ -89,24 +107,37 @@ def submit_review():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-
 @reviews_bp.route("/update/<int:review_id>", methods=["PUT"])
-def update_review(review_id):
+@token_required
+def update_review(review_id,**kwargs):
     """
     Updates an existing review.
 
-    Args:
-        review_id (int): The ID of the review to update.
+    **Authorization:** Requires a valid JWT token.
 
-    Expects a JSON payload with:
-    - CustomerID: int
-    - Rating: int (1-5)
-    - Comment (optional): str
+    **Path Parameters:**
+    - review_id (int): The ID of the review to update.
+
+    **Request JSON:**
+    - CustomerID (int): The ID of the customer submitting the review.
+    - Rating (int): The updated rating (1-5).
+    - Comment (str, optional): The updated review comment.
+
+    **Headers:**
+    - Authorization: Bearer <JWT_TOKEN>
 
     Returns:
-        JSON: A success message or error details.
+        JSON: Success or error message.
     """
     data = request.json
+    if "CustomerID" in data:
+        customer_id = data["CustomerID"]
+        username = get_username_from_customer_id(customer_id)
+        if username != kwargs["Username"]:
+            return jsonify({"error": "Unauthorized access"}), 403
+    else:
+         return jsonify({"error": "Missing required field: CustomerID"}), 400
+    
     try:
         if "CustomerID" not in data or "Rating" not in data:
             return jsonify({"error": "CustomerID and Rating are required."}), 400
@@ -147,23 +178,36 @@ def update_review(review_id):
         return jsonify({"error": f"Missing key: {e.args[0]}"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-    
+  
 @reviews_bp.route("/delete/<int:review_id>", methods=["DELETE"])
-def delete_review(review_id):
+@token_required
+def delete_review(review_id,**kwargs):
     """
     Deletes a review.
 
-    Args:
-        review_id (int): The ID of the review to delete.
+    **Authorization:** Requires a valid JWT token.
 
-    Expects a JSON payload with:
-    - CustomerID: int
+    **Path Parameters:**
+    - review_id (int): The ID of the review to delete.
+
+    **Request JSON:**
+    - CustomerID (int): The ID of the customer attempting to delete the review.
+
+    **Headers:**
+    - Authorization: Bearer <JWT_TOKEN>
 
     Returns:
-        JSON: A success message or error details.
+        JSON: Success or error message.
     """
     data = request.json
+    if "CustomerID" in data:
+        customer_id = data["CustomerID"]
+        username = get_username_from_customer_id(customer_id)
+        if username != kwargs["Username"]:
+            return jsonify({"error": "Unauthorized access"}), 403
+    else:
+         return jsonify({"error": "Missing required field: CustomerID"}), 400
+    
     try:
         if "CustomerID" not in data:
             return jsonify({"error": "CustomerID is required."}), 400
@@ -193,7 +237,6 @@ def delete_review(review_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @reviews_bp.route("/product/<int:good_id>", methods=["GET"])
 def get_product_reviews(good_id):
@@ -238,7 +281,6 @@ def get_product_reviews(good_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @reviews_bp.route("/customer/<int:customer_id>", methods=["GET"])
 def get_customer_reviews(customer_id):
@@ -288,7 +330,6 @@ def get_customer_reviews(customer_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @reviews_bp.route("/moderate/<int:review_id>", methods=["PUT"])
 def moderate_review(review_id):
@@ -352,7 +393,6 @@ def moderate_review(review_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-
 @reviews_bp.route("/details/<int:review_id>", methods=["GET"])
 def get_review_details(review_id):
     """
@@ -396,7 +436,6 @@ def get_review_details(review_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 @reviews_bp.route("/upvote/<int:review_id>", methods=["PUT"])
 def upvote_review(review_id):
@@ -462,6 +501,19 @@ def downvote_review(review_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+def get_username_from_customer_id(customer_id):
+    """
+    Fetches the Username corresponding to a given CustomerID.
+
+    Args:
+        customer_id (int): The ID of the customer.
+
+    Returns:
+        str: The username if found, else None.
+    """
+    query = "SELECT Username FROM Customers WHERE CustomerID = ?"
+    result = execute_query(query, (customer_id,), fetchone=True)
+    return result[0] if result else None
 
 if __name__ == "__main__":
     app.run(debug=True)
