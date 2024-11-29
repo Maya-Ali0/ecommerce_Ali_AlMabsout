@@ -7,6 +7,7 @@ deletion, updates, fetching details, and wallet operations.
 
 from flask import Blueprint, request, jsonify
 import sqlite3
+import re
 
 customers_bp = Blueprint("customers", __name__)
 
@@ -55,13 +56,18 @@ def register_customer():
         JSON: Success or error message.
     """
     data = request.json
-    try:       
+    try:
         required_fields = ["FullName", "Username", "Password", "Age", "Address", "Gender", "MaritalStatus"]
         for field in required_fields:
             if field not in data:
                 return jsonify({"error": f"Missing field: {field}"}), 400
 
-        existing_user = execute_query("SELECT * FROM Customers WHERE Username = ?", (data["Username"],), fetchone=True)
+        username = data["Username"]
+        username_pattern = r"^[a-zA-Z0-9_.-]{3,20}$"
+        if not re.match(username_pattern, username):
+            return jsonify({"error": "Invalid username. Must be 3-20 characters long and contain only letters, numbers, underscores, dots, or hyphens."}), 400
+
+        existing_user = execute_query("SELECT * FROM Customers WHERE Username = ?", (username,), fetchone=True)
         if existing_user:
             return jsonify({"error": "Username already exists."}), 400
 
@@ -81,24 +87,13 @@ def register_customer():
         ), commit=True)
         
         return jsonify({"message": "Customer registered successfully."}), 201
-
-    except sqlite3.IntegrityError as e:
-        if "UNIQUE constraint failed" in str(e):
-            print(e)
-            return jsonify({"error": "Username already exists."}), 400
-        return jsonify({"error": "Database error occurred."}), 500
-
-    except KeyError as e:
-        return jsonify({"error": f"Missing required field: {e.args[0]}"}), 400
-
-
     except sqlite3.IntegrityError as e:
         if "UNIQUE constraint failed" in str(e):
             return jsonify({"error": "Username already exists."}), 400
         return jsonify({"error": "Database error occurred."}), 500
     except KeyError as e:
         return jsonify({"error": f"Missing required field: {e.args[0]}"}), 400
-
+    
 
 @customers_bp.route("/delete/<username>", methods=["DELETE"])
 def delete_customer(username):
@@ -111,9 +106,14 @@ def delete_customer(username):
     Returns:
         JSON: Success message.
     """
+    user_query = "SELECT CustomerID FROM Customers WHERE Username = ?"
+    user = execute_query(user_query, (username,), fetchone=True)
+    if not user:
+        return jsonify({"error": f"Customer '{username}' not found."}), 404
+
     query = "DELETE FROM Customers WHERE Username = ?"
     execute_query(query, (username,), commit=True)
-    return jsonify({"message": f"Customer '{username}' deleted successfully."})
+    return jsonify({"message": f"Customer '{username}' deleted successfully."}), 200
 
 @customers_bp.route("/update/<username>", methods=["PUT"])
 def update_customer(username):
