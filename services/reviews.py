@@ -1,3 +1,10 @@
+"""
+Blueprint for Reviews Management
+
+This module provides routes and utilities for managing product reviews,
+including creating, updating, deleting, and retrieving reviews. It also
+includes review moderation functionalities for admins.
+"""
 from flask import Flask, Blueprint, request, jsonify
 import sqlite3
 
@@ -7,6 +14,19 @@ reviews_bp = Blueprint("reviews", __name__)
 DB_PATH = "./eCommerce.db"
 
 def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
+    """
+    Executes a query on the SQLite database.
+
+    Args:
+        query (str): The SQL query to execute.
+        params (tuple): The parameters for the query.
+        fetchone (bool): Whether to fetch a single row.
+        fetchall (bool): Whether to fetch all rows.
+        commit (bool): Whether to commit the transaction.
+
+    Returns:
+        Any: Query results if fetchone or fetchall is True; otherwise, None.
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     result = None
@@ -24,6 +44,18 @@ def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False
 
 @reviews_bp.route("/submit", methods=["POST"])
 def submit_review():
+    """
+    Submits a new product review.
+
+    Expects a JSON payload with:
+    - CustomerID: int
+    - GoodID: int
+    - Rating: int (1-5)
+    - Comment (optional): str
+
+    Returns:
+        JSON: A success message or error details.
+    """
     data = request.json
     try:
         required_fields = ["CustomerID", "GoodID", "Rating"]
@@ -61,6 +93,20 @@ def submit_review():
 
 @reviews_bp.route("/update/<int:review_id>", methods=["PUT"])
 def update_review(review_id):
+    """
+    Updates an existing review.
+
+    Args:
+        review_id (int): The ID of the review to update.
+
+    Expects a JSON payload with:
+    - CustomerID: int
+    - Rating: int (1-5)
+    - Comment (optional): str
+
+    Returns:
+        JSON: A success message or error details.
+    """
     data = request.json
     try:
         if "CustomerID" not in data or "Rating" not in data:
@@ -106,6 +152,18 @@ def update_review(review_id):
     
 @reviews_bp.route("/delete/<int:review_id>", methods=["DELETE"])
 def delete_review(review_id):
+    """
+    Deletes a review.
+
+    Args:
+        review_id (int): The ID of the review to delete.
+
+    Expects a JSON payload with:
+    - CustomerID: int
+
+    Returns:
+        JSON: A success message or error details.
+    """
     data = request.json
     try:
         if "CustomerID" not in data:
@@ -140,6 +198,15 @@ def delete_review(review_id):
 
 @reviews_bp.route("/product/<int:good_id>", methods=["GET"])
 def get_product_reviews(good_id):
+    """
+    Retrieves all reviews for a specific product.
+
+    Args:
+        good_id (int): The ID of the product.
+
+    Returns:
+        JSON: A list of approved reviews or an error message.
+    """
     try:
         query = """
         SELECT Reviews.ReviewID, Reviews.CustomerID, Reviews.Rating, Reviews.Comment, Reviews.CreatedAt, Reviews.IsApproved,
@@ -173,6 +240,15 @@ def get_product_reviews(good_id):
 
 @reviews_bp.route("/customer/<int:customer_id>", methods=["GET"])
 def get_customer_reviews(customer_id):
+    """
+    Retrieves all reviews by a specific customer.
+
+    Args:
+        customer_id (int): The ID of the customer.
+
+    Returns:
+        JSON: A list of reviews or an error message.
+    """
     try:
         query = """
         SELECT ReviewID, GoodID, Rating, Comment, CreatedAt, IsApproved
@@ -203,6 +279,19 @@ def get_customer_reviews(customer_id):
 
 @reviews_bp.route("/moderate/<int:review_id>", methods=["PUT"])
 def moderate_review(review_id):
+    """
+    Moderates a review (approve or disapprove).
+
+    Args:
+        review_id (int): The ID of the review to moderate.
+
+    Expects a JSON payload with:
+    - CustomerID: int
+    - IsApproved: bool
+
+    Returns:
+        JSON: A success message or error details.
+    """
     data = request.json
     try:
         if "CustomerID" not in data:
@@ -232,6 +321,15 @@ def moderate_review(review_id):
 
 @reviews_bp.route("/details/<int:review_id>", methods=["GET"])
 def get_review_details(review_id):
+    """
+    Retrieves details for a specific review.
+
+    Args:
+        review_id (int): The ID of the review.
+
+    Returns:
+        JSON: Review details or an error message.
+    """
     try:
         query = """
         SELECT Reviews.ReviewID, Reviews.CustomerID, Reviews.GoodID, Reviews.Rating, Reviews.Comment, Reviews.CreatedAt, Reviews.IsApproved,

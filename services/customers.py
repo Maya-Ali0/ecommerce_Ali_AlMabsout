@@ -1,3 +1,10 @@
+"""
+Blueprint for customer management in the eCommerce application.
+
+Provides endpoints for customer operations, including registration,
+deletion, updates, fetching details, and wallet operations.
+"""
+
 from flask import Blueprint, request, jsonify
 import sqlite3
 
@@ -5,6 +12,19 @@ customers_bp = Blueprint("customers", __name__)
 
 DB_PATH = "./eCommerce.db"
 def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
+    """
+    Execute a SQL query against the database.
+
+    Args:
+        query (str): The SQL query to execute.
+        params (tuple): Parameters for the SQL query.
+        fetchone (bool): Whether to fetch one record.
+        fetchall (bool): Whether to fetch all records.
+        commit (bool): Whether to commit the transaction.
+
+    Returns:
+        Any: The result of the query execution.
+    """
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -25,6 +45,15 @@ def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False
 
 @customers_bp.route("/register", methods=["POST"])
 def register_customer():
+    """
+    Register a new customer.
+
+    Expects a JSON payload with required fields:
+    FullName, Username, Password, Age, Address, Gender, MaritalStatus.
+
+    Returns:
+        JSON: Success or error message.
+    """
     data = request.json
     try:       
         required_fields = ["FullName", "Username", "Password", "Age", "Address", "Gender", "MaritalStatus"]
@@ -73,12 +102,30 @@ def register_customer():
 
 @customers_bp.route("/delete/<username>", methods=["DELETE"])
 def delete_customer(username):
+    """
+    Delete a customer by username.
+
+    Args:
+        username (str): The username of the customer to delete.
+
+    Returns:
+        JSON: Success message.
+    """
     query = "DELETE FROM Customers WHERE Username = ?"
     execute_query(query, (username,), commit=True)
     return jsonify({"message": f"Customer '{username}' deleted successfully."})
 
 @customers_bp.route("/update/<username>", methods=["PUT"])
 def update_customer(username):
+    """
+    Update customer details.
+
+    Args:
+        username (str): The username of the customer to update.
+
+    Returns:
+        JSON: Success message.
+    """
     data = request.json
     fields = ", ".join(f"{key} = ?" for key in data.keys())
     query = f"UPDATE Customers SET {fields} WHERE Username = ?"
@@ -88,12 +135,27 @@ def update_customer(username):
 
 @customers_bp.route("/all", methods=["GET"])
 def get_all_customers():
+    """
+    Get details of all customers.
+
+    Returns:
+        JSON: A list of customer details.
+    """
     query = "SELECT FullName, Username, Age, Address, Gender, MaritalStatus, WalletBalance FROM Customers"
     customers = execute_query(query, fetchall=True)
     return jsonify(customers)
 
 @customers_bp.route("/<username>", methods=["GET"])
 def get_customer(username):
+    """
+    Get details of a specific customer.
+
+    Args:
+        username (str): The username of the customer.
+
+    Returns:
+        JSON: Customer details or error message.
+    """
     query = "SELECT FullName, Username, Age, Address, Gender, MaritalStatus, WalletBalance FROM Customers WHERE Username = ?"
     customer = execute_query(query, (username,), fetchone=True)
     if customer:
@@ -102,6 +164,15 @@ def get_customer(username):
 
 @customers_bp.route("/charge/<username>", methods=["POST"])
 def charge_wallet(username):
+    """
+    Charge a customer's wallet.
+
+    Args:
+        username (str): The username of the customer to charge.
+
+    Returns:
+        JSON: Success message.
+    """
     data = request.json
     amount = data.get("amount", 0)
     query = "UPDATE Customers SET WalletBalance = WalletBalance + ? WHERE Username = ?"
@@ -110,6 +181,14 @@ def charge_wallet(username):
 
 @customers_bp.route("/deduct/<username>", methods=["POST"])
 def deduct_wallet(username):
+    """
+    Deduct from a customer's wallet.
+
+    Args:
+        username (str): The username of the customer.
+        Returns:
+            JSON: Success or error message.
+    """
     data = request.json
     amount = data.get("amount", 0)
     query = "SELECT WalletBalance FROM Customers WHERE Username = ?"
