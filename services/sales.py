@@ -1,3 +1,10 @@
+"""
+Sales Management Module
+
+This module provides APIs for managing sales, including displaying available goods,
+retrieving good details, processing purchases, and fetching customer purchase history.
+"""
+
 from flask import Blueprint, request, jsonify
 import sqlite3
 
@@ -6,6 +13,19 @@ sales_bp = Blueprint("sales", __name__)
 DB_PATH = "./eCommerce.db"
 
 def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
+    """
+    Executes a SQL query on the eCommerce database.
+
+    Args:
+        query (str): The SQL query to execute.
+        params (tuple): Parameters for the query.
+        fetchone (bool): Whether to fetch a single row.
+        fetchall (bool): Whether to fetch all rows.
+        commit (bool): Whether to commit changes to the database.
+
+    Returns:
+        Any: Query results if fetchone or fetchall is True, otherwise None.
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(query, params)
@@ -21,6 +41,14 @@ def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False
 
 @sales_bp.route("/goods", methods=["GET"])
 def display_available_goods():
+    """
+    Retrieves a list of goods available for purchase.
+
+    Returns:
+        JSON: A list of goods, each containing:
+              - Name (str): Name of the good.
+              - PricePerItem (float): Price per item.
+    """
     try:
         query = "SELECT Name, PricePerItem FROM Goods WHERE StockCount > 0"
         goods = execute_query(query, fetchall=True)
@@ -33,6 +61,18 @@ def display_available_goods():
 
 @sales_bp.route("/goods/<int:good_id>", methods=["GET"])
 def get_good_details(good_id):
+    """
+    Retrieves detailed information about a specific good.
+
+    Args:
+        good_id (int): The ID of the good.
+
+    Returns:
+        JSON: Details of the good, including:
+              - GoodID, Name, Category, PricePerItem, Description,
+                StockCount, CreatedAt, and UpdatedAt.
+              Or an error message if the good is not found.
+    """
     try:
         query = """
         SELECT GoodID, Name, Category, PricePerItem, Description, StockCount, CreatedAt, UpdatedAt
@@ -41,7 +81,6 @@ def get_good_details(good_id):
         """
         good = execute_query(query, (good_id,), fetchone=True)
 
-        # Check if the good exists and add labels
         if good:
             labeled_good = {
                 "GoodID": good[0],
@@ -59,9 +98,20 @@ def get_good_details(good_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @sales_bp.route("/sale", methods=["POST"])
 def make_sale():
+    """
+    Processes a sale for a specific good.
+
+    Expects a JSON payload with the following fields:
+        - Username (str): Username of the customer.
+        - GoodName (str): Name of the good to purchase.
+        - Quantity (int): Quantity to purchase (must be greater than 0).
+
+    Returns:
+        JSON: A success message with the total cost of the purchase, or an error
+              message if the operation fails (e.g., insufficient stock or funds).
+    """
     data = request.json
     try:
         required_fields = ["Username", "GoodName", "Quantity"]
@@ -117,6 +167,17 @@ def make_sale():
 
 @sales_bp.route("/purchases/<username>", methods=["GET"])
 def get_customer_purchases(username):
+    """
+    Retrieves the purchase history for a specific customer.
+
+    Args:
+        username (str): The username of the customer.
+
+    Returns:
+        JSON: A list of purchases, including:
+              - Name of the good, Quantity purchased, TotalAmount, and PurchaseDate.
+              Or an error message if the customer is not found.
+    """
     try:
         customer_query = "SELECT CustomerID FROM Customers WHERE Username = ?"
         customer = execute_query(customer_query, (username,), fetchone=True)

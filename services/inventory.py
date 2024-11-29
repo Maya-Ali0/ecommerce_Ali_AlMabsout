@@ -1,3 +1,10 @@
+"""
+Inventory Management Module
+
+This module provides APIs for managing inventory, including adding goods,
+deducting stock, and updating product information in the eCommerce database.
+"""
+
 from flask import Blueprint, request, jsonify
 import sqlite3
 
@@ -6,6 +13,19 @@ inventory_bp = Blueprint("inventory", __name__)
 DB_PATH = "./eCommerce.db"
 
 def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False):
+    """
+    Executes a SQL query on the eCommerce database.
+
+    Args:
+        query (str): The SQL query to execute.
+        params (tuple): Parameters for the query.
+        fetchone (bool): Whether to fetch a single row.
+        fetchall (bool): Whether to fetch all rows.
+        commit (bool): Whether to commit changes to the database.
+
+    Returns:
+        Any: Query results if fetchone or fetchall is True, otherwise None.
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(query, params)
@@ -21,6 +41,19 @@ def execute_query(query, params=(), fetchone=False, fetchall=False, commit=False
 
 @inventory_bp.route("/add", methods=["POST"])
 def add_goods():
+    """
+    Adds a new good to the inventory.
+
+    Expects a JSON payload with the following fields:
+        - Name (str): Name of the good.
+        - Category (str): Category of the good (valid values: Food, Clothes, Accessories, Electronics).
+        - PricePerItem (float): Price per item (must be a positive number).
+        - Description (str): Description of the good.
+        - StockCount (int): Initial stock count (must be a non-negative integer).
+
+    Returns:
+        JSON: A success message or an error message if the operation fails.
+    """
     data = request.json
     if not data:
         return jsonify({"error": "Request must contain JSON data."}), 400
@@ -64,6 +97,18 @@ def add_goods():
 
 @inventory_bp.route("/deduct/<int:good_id>", methods=["POST"])
 def deduct_goods(good_id):
+    """
+    Deducts a quantity of stock for a specific good.
+
+    Args:
+        good_id (int): The ID of the good whose stock is to be deducted.
+
+    Expects a JSON payload with the following field:
+        - quantity (int): Quantity to deduct (must be greater than 0).
+
+    Returns:
+        JSON: A success message or an error message if the operation fails.
+    """
     data = request.json
     try:
         quantity_to_deduct = data.get("quantity", 0)
@@ -86,6 +131,22 @@ def deduct_goods(good_id):
 
 @inventory_bp.route("/update/<int:good_id>", methods=["PUT"])
 def update_goods(good_id):
+    """
+    Updates information for a specific good.
+
+    Args:
+        good_id (int): The ID of the good to update.
+
+    Expects a JSON payload with any combination of the following fields:
+        - Name (str): Updated name of the good.
+        - Category (str): Updated category.
+        - PricePerItem (float): Updated price per item.
+        - Description (str): Updated description.
+        - StockCount (int): Updated stock count.
+
+    Returns:
+        JSON: A success message or an error message if the operation fails.
+    """
     data = request.json
     try:
         if not data:
