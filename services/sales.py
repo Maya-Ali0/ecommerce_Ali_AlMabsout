@@ -24,20 +24,41 @@ def display_available_goods():
     try:
         query = "SELECT Name, PricePerItem FROM Goods WHERE StockCount > 0"
         goods = execute_query(query, fetchall=True)
-        return jsonify(goods), 200
+
+        labeled_goods = [{"Name": good[0], "PricePerItem": good[1]} for good in goods]
+
+        return jsonify(labeled_goods), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @sales_bp.route("/goods/<int:good_id>", methods=["GET"])
 def get_good_details(good_id):
     try:
-        query = "SELECT * FROM Goods WHERE GoodID = ?"
+        query = """
+        SELECT GoodID, Name, Category, PricePerItem, Description, StockCount, CreatedAt, UpdatedAt
+        FROM Goods
+        WHERE GoodID = ?
+        """
         good = execute_query(query, (good_id,), fetchone=True)
+
+        # Check if the good exists and add labels
         if good:
-            return jsonify(good), 200
+            labeled_good = {
+                "GoodID": good[0],
+                "Name": good[1],
+                "Category": good[2],
+                "PricePerItem": good[3],
+                "Description": good[4],
+                "StockCount": good[5],
+                "CreatedAt": good[6],
+                "UpdatedAt": good[7]
+            }
+            return jsonify(labeled_good), 200
+
         return jsonify({"error": "Good not found."}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @sales_bp.route("/sale", methods=["POST"])
 def make_sale():
