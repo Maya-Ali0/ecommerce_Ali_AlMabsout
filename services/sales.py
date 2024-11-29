@@ -193,7 +193,8 @@ def get_customer_purchases(username):
         WHERE HistoricalPurchases.CustomerID = ?
         """
         purchases = execute_query(purchases_query, (customer_id,), fetchall=True)
+        labeled_purchases = [{"Name": purchase[0], "Quantity": purchase[1],"TotalPrice":purchase[2],"BoughtAt":purchase[3]} for purchase in purchases]
 
-        return jsonify(purchases), 200
+        return jsonify(labeled_purchases), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
