@@ -40,20 +40,6 @@ def create_database():
     );
     """)
 
-    # Create Sales table
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS Sales (
-        SaleID INTEGER PRIMARY KEY AUTOINCREMENT,
-        CustomerID INTEGER NOT NULL,
-        GoodID INTEGER NOT NULL,
-        Quantity INTEGER NOT NULL CHECK (Quantity > 0),
-        TotalAmount REAL NOT NULL CHECK (TotalAmount > 0.0),
-        SaleDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (CustomerID) REFERENCES Customers (CustomerID) ON DELETE CASCADE,
-        FOREIGN KEY (GoodID) REFERENCES Goods (GoodID) ON DELETE CASCADE
-    );
-    """)
-
     # Create Reviews table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS Reviews (
