@@ -274,11 +274,15 @@ def get_all_customers():
     Get details of all customers.
 
     Returns:
-        JSON: A list of customer details.
+        JSON: A list of customer details as key-value pairs.
     """
     query = "SELECT FullName, Username, Age, Address, Gender, MaritalStatus, WalletBalance FROM Customers"
     customers = execute_query(query, fetchall=True)
-    return jsonify(customers)
+    
+    columns = ["FullName", "Username", "Age", "Address", "Gender", "MaritalStatus", "WalletBalance"]
+    customers_list = [dict(zip(columns, customer)) for customer in customers]
+    
+    return jsonify(customers_list)
 
 @customers_bp.route("/<username>", methods=["GET"])
 def get_customer(username):
@@ -289,12 +293,20 @@ def get_customer(username):
         username (str): The username of the customer.
 
     Returns:
-        JSON: Customer details or error message.
+        JSON: Customer details as key-value pairs or error message.
     """
-    query = "SELECT FullName, Username, Age, Address, Gender, MaritalStatus, WalletBalance FROM Customers WHERE Username = ?"
+    query = """
+    SELECT FullName, Username, Age, Address, Gender, MaritalStatus, WalletBalance 
+    FROM Customers WHERE Username = ?
+    """
     customer = execute_query(query, (username,), fetchone=True)
+
     if customer:
-        return jsonify(customer)
+        columns = ["FullName", "Username", "Age", "Address", "Gender", "MaritalStatus", "WalletBalance"]
+        customer_dict = dict(zip(columns, customer))
+        
+        return jsonify(customer_dict)
+
     return jsonify({"error": "Customer not found."}), 404
 
 @customers_bp.route("/charge/<username>", methods=["POST"])
