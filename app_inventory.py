@@ -2,8 +2,10 @@ from flask import Flask, jsonify, Response, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from services.inventory import inventory_bp
-from prometheus_client import Counter, Histogram, generate_latest
+from prometheus_client import Counter, Histogram, generate_latest, CollectorRegistry, REGISTRY
 import time
+from memory_profiler import profile
+import pytest
 
 app = Flask(__name__)
 
@@ -35,7 +37,18 @@ def record_metrics(response):
 def metrics():
     return Response(generate_latest(), mimetype="text/plain")
 
+
+@pytest.fixture(autouse=True)
+def clear_registry():
+    REGISTRY._names_to_collectors.clear()
+
+
 app.register_blueprint(inventory_bp, url_prefix="/inventory")
 
+
+@profile
+def start_app():
+    app.run(debug=True, port=5002)
+
 if __name__ == "__main__":
-    app.run(port=5002, debug=True)
+    start_app()

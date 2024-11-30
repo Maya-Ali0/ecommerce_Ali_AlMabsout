@@ -70,28 +70,28 @@ def test_add_goods_duplicate(client, setup_database):
 
 def test_deduct_goods(client, setup_database):
     data = {"quantity": 5}
-    response = client.post("/inventory/deduct/44", json=data)
+    response = client.post("/inventory/deduct/1", json=data)
     assert response.status_code == 200
-    assert response.json["message"] == "Deducted 5 items from Good ID 44 successfully."
+    assert response.json["message"] == "Deducted 5 items from Good ID 1 successfully."
     
 def test_deduct_goods_insufficient_stock(client, setup_database):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT StockCount FROM Goods WHERE GoodID = 41")
+    cursor.execute("SELECT StockCount FROM Goods WHERE GoodID = 1")
     stock = cursor.fetchone()
     conn.close()
     assert stock is not None
     available_stock = stock[0]
 
     data = {"quantity": available_stock + 5}
-    response = client.post("/inventory/deduct/41", json=data)
+    response = client.post("/inventory/deduct/1", json=data)
     assert response.status_code == 400
     assert response.json["error"] == f"Insufficient stock. Available stock: {available_stock}."
 
 
 def test_deduct_goods_not_found(client, setup_database):
     data = {"quantity": 5}
-    response = client.post("/inventory/deduct/1", json=data)
+    response = client.post("/inventory/deduct/999", json=data)
     assert response.status_code == 404
     assert response.json["error"] == "Good not found."
 

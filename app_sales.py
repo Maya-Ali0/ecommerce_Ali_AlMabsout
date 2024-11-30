@@ -1,9 +1,12 @@
 from flask import Flask, jsonify, Response, request
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from prometheus_client import Counter, Histogram, generate_latest
+from prometheus_client import Counter, Histogram, generate_latest, CollectorRegistry, REGISTRY
 from services.sales import sales_bp
 import time
+from memory_profiler import profile
+import pytest
+
 
 app = Flask(__name__)
 
@@ -35,7 +38,19 @@ def record_metrics(response):
 def metrics():
     return Response(generate_latest(), mimetype="text/plain")
 
+
+
+@pytest.fixture(autouse=True)
+def clear_registry():
+    REGISTRY._names_to_collectors.clear()
+
+
 app.register_blueprint(sales_bp, url_prefix="/sales")
 
+
+@profile
+def start_app():
+    app.run(debug=True, port=5003)
+
 if __name__ == "__main__":
-    app.run(port=5003, debug=True)
+    start_app()

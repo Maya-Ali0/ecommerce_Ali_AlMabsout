@@ -1,6 +1,7 @@
 from flask import Flask, jsonify
 import sqlite3
 import pandas as pd
+from memory_profiler import profile
 
 app = Flask(__name__)
 
@@ -10,6 +11,7 @@ def execute_query(query):
     with sqlite3.connect(DB_PATH) as conn:
         return pd.read_sql(query, conn)
     
+
 @app.route('/analytics/total-revenue', methods=['GET'])
 def total_revenue():
     query = """
@@ -52,5 +54,9 @@ def customer_demographics():
     df = execute_query(query)
     return jsonify(df.to_dict(orient="records"))
 
-if __name__ == "__main__":
+@profile
+def start_app():
     app.run(debug=True, port=5005)
+
+if __name__ == "__main__":
+    start_app()
