@@ -1,0 +1,50 @@
+services:
+  customers:
+    build:
+      context: .
+      dockerfile: Dockerfile.customers
+    ports:
+      - "5001:5001"
+    volumes:
+      - .:/app
+    command: python app_customers.py
+
+  inventory:
+    build:
+      context: .
+      dockerfile: Dockerfile.inventory
+    ports:
+      - "5002:5002"
+    volumes:
+      - .:/app
+    command: python app_inventory.py
+
+  sales:
+    build:
+      context: .
+      dockerfile: Dockerfile.sales
+    ports:
+      - "5003:5003"
+    volumes:
+      - .:/app
+    command: python app_sales.py
+
+  reviews:
+    build:
+      context: .
+      dockerfile: Dockerfile.reviews
+    ports:
+      - "5004:5004"
+    volumes:
+      - .:/app
+    command: python app_reviews.py
+
+  analytics:
+    build:
+      context: .
+      dockerfile: Dockerfile.analytics
+    ports:
+      - "5005:5005"
+    volumes:
+      - .:/app
+    command: python analytics_service.py
